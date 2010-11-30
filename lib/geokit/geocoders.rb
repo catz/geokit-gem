@@ -2,7 +2,8 @@ require 'net/http'
 require 'rexml/document'
 require 'yaml'
 require 'timeout'
-require 'logger'
+require 'logger'  
+require 'iconv' 
 
 module Geokit
   module Inflector
@@ -637,6 +638,40 @@ module Geokit
         res.success = !(res.city =~ /\(.+\)/)
         res
       end
+    end 
+    
+    # Provides geocoding based upon an IP address.  The underlying web service is a ipgeobase.ru
+    class IpGeoBaseGeocoder < Geocoder
+      private
+      
+      def self.do_geocode(ip, options = {})
+        return GeoLoc.new if '0.0.0.0' == ip
+        return GeoLoc.new unless /^(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})?$/.match(ip)
+        
+        xml_req = "<?xml version='1.0'?><ipquery><fields><all/></fields><ip-list><ip>#{ip}</ip><ip>89.109.33.60</ip></ip-list></ipquery>"        
+        
+        url = URI.parse('http://194.85.91.253:8090')  
+        response = Net::HTTP.new(url.host, url.port).start {|http|
+          http.post("/geo/geo.html", URI.escape(xml_req)) }  
+        body = Iconv.iconv("utf-8", "cp1251", response.body)     
+        response.is_a?(Net::HTTPSuccess) ? parse_body(body[0]) : GeoLoc.new
+      rescue
+        logger.error "Caught an error during IpGeoBase geocoding call: "+$!
+        return GeoLoc.new
+      end 
+      
+      def self.parse_body(body) # :nodoc:   
+        doc = REXML::Document.new(body)
+
+        res = Geokit::GeoLoc.new
+        res.provider='ipgeobase'
+        res.city = Iconv.iconv("cp1251", "utf-8", doc.elements['//city'].text)
+        res.state = Iconv.iconv("cp1251", "utf-8", doc.elements['//region'].text)
+        res.lat = doc.elements['//lat'].text.to_f
+        res.lng = doc.elements['//lng'].text.to_f
+        res.success = !!res.city && !res.city.empty?
+        res
+      end     
     end
     
     # -------------------------------------------------------------------------------------------
