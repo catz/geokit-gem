@@ -648,7 +648,7 @@ module Geokit
         return GeoLoc.new if '0.0.0.0' == ip
         return GeoLoc.new unless /^(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})?$/.match(ip)
         
-        xml_req = "<?xml version='1.0'?><ipquery><fields><all/></fields><ip-list><ip>#{ip}</ip><ip>89.109.33.60</ip></ip-list></ipquery>"        
+        xml_req = "<?xml version='1.0'?><ipquery><fields><all/></fields><ip-list><ip>#{ip}</ip></ip-list></ipquery>"        
         
         url = URI.parse('http://194.85.91.253:8090')  
         response = Net::HTTP.new(url.host, url.port).start {|http|
